@@ -1,34 +1,72 @@
-import http from 'http';
-import si from 'systeminformation';
+import http from "node:http";
+import * as si from "systeminformation";
 
-const PORT = 3000;
+export interface ISystemInformation {
+  cpu: si.Systeminformation.CpuData;
+  system: si.Systeminformation.SystemData;
+  mem: si.Systeminformation.MemData;
+  os: si.Systeminformation.OsData;
+  currentLoad: si.Systeminformation.CurrentLoadData;
+  processes: si.Systeminformation.ProcessesData;
+  diskLayout: si.Systeminformation.DiskLayoutData[];
+  networkInterfaces:
+    | si.Systeminformation.NetworkInterfacesData
+    | si.Systeminformation.NetworkInterfacesData[];
+}
+
+// Fonction pure facile à tester
+export async function getSysInfo(): Promise<ISystemInformation> {
+  const [
+    cpu, system, mem, osInfo, currentLoad, processes, diskLayout, networkInterfaces,
+  ] = await Promise.all([
+    si.cpu(),
+    si.system(),
+    si.mem(),
+    si.osInfo(),
+    si.currentLoad(),
+    si.processes(),
+    si.diskLayout(),
+    si.networkInterfaces(),
+  ]);
+
+  return {
+    cpu,
+    system,
+    mem,
+    os: osInfo,
+    currentLoad,
+    processes,
+    diskLayout,
+    networkInterfaces,
+  };
+}
+
+const PORT = process.env.PORT ? Number(process.env.PORT) : 8000;
 
 const server = http.createServer(async (req, res) => {
-  if (req.url === '/api/v1/sysinfo' && req.method === 'GET') {
-    try {
-      const systemInfo = {
-        cpu: await si.cpu(),
-        system: await si.system(),
-        mem: await si.mem(),
-        os: await si.osInfo(),
-        currentLoad: await si.currentLoad(),
-        processes: await si.processes(),
-        diskLayout: await si.diskLayout(),
-        networkInterfaces: await si.networkInterfaces(),
-      };
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(systemInfo, null, 2));
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Failed to fetch system information' }));
+  try {
+    if (req.method === "GET" && req.url === "/api/v1/sysinfo") {
+      const payload = await getSysInfo();
+      const json = JSON.stringify(payload);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(json);
+      return;
     }
-  } else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not Found' }));
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Not found" }));
+  } catch (err: any) {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Internal server error", message: String(err?.message || err) }));
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}/api/v1/sysinfo`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log("Server listening on http://localhost:${PORT}");
+  });
+}
+
+export default server;
