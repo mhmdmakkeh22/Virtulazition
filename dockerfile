@@ -1,23 +1,33 @@
-# 1) Image Node LTS
-FROM node:18
+# -------- ÉTAPE 1 : BUILD --------
+FROM node:18 AS builder
 
-# 2) Dossier de travail
+# Dossier de travail
 WORKDIR /app
 
-# 3) Copier manifests
+# Copier les fichiers de configuration et installer les dépendances complètes (y compris dev)
 COPY package*.json ./
-
-# 4) Installer les dépendances
 RUN npm install
 
-# 5) Copier le code source
+# Copier le code source et compiler TypeScript
 COPY . .
-
-# 6) Build TypeScript
 RUN npm run build
 
-# 7) Exposer le port du serveur
+
+# -------- ÉTAPE 2 : RUNTIME (IMAGE FINALE) --------
+FROM node:18-slim AS runtime
+
+# Dossier de travail dans l'image finale
+WORKDIR /app
+
+# Copier uniquement le résultat de build et les fichiers nécessaires à l'exécution
+COPY --from=builder /app/package*.json ./
+RUN npm install --omit=dev
+
+# Copier uniquement le dossier compilé (dist) depuis l'étape build
+COPY --from=builder /app/dist ./dist
+
+# Exposer le port du serveur
 EXPOSE 3000
 
-# 8) Démarrer l'appli
-CMD ["npm", "start"]
+# Commande de lancement
+CMD ["node", "dist/index.js"]
