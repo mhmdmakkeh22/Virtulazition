@@ -29,17 +29,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show current directory contents
+      - name: Show directory contents
         run: |
           echo "Current working directory: $(pwd)"
-          ls -R
+          ls -al
 
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest -f Dockerfile .
+      - name: Build Docker image (local test)
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest -f Dockerfile .
 
+      - name: Tag and push to Docker Hub
+        run: |
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:0.0.1
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:0.0.1
 
-      - name: Push image to Docker Hub
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
-
-      - name: Push image to GHCR
-        run: docker push ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
+      - name: Tag and push to GHCR
+        run: |
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
+          docker push ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
