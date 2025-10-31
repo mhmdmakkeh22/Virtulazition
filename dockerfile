@@ -12,7 +12,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-
+#....
 # -------- ÉTAPE 2 : RUNTIME (IMAGE FINALE) --------
 FROM node:18-slim AS runtime
 
