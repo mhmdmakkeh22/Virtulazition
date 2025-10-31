@@ -39,6 +39,7 @@ jobs:
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest .
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
 
+
       # 6. Push image to Docker Hub
       - name: Push image to Docker Hub
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
