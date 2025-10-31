@@ -2,42 +2,64 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main  # triggers only when you push to main branch
+    branches: [ "main" ]     # run on every push to main
+  pull_request:
+    branches: [ "main" ]     # run tests on PRs too
 
 jobs:
-  build-and-push:
+  ci:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Set up Node.js
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # 3️⃣ Install dependencies and run tests
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Run tests
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run unit tests
         run: npm test
 
-      # 4️⃣ Build Docker image
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest .
+  cd:
+    name: Build & Push Docker image
+    needs: ci                # only if CI succeeds
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'   # only on main branch pushes
 
-      # 5️⃣ Login to Docker Hub
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Optional: use build cache for faster builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 6️⃣ Push Docker image
-      - name: Push Docker image to Docker Hub
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
+      - name: Build and push (latest)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
+
+      # Optional semantic tag by short SHA (helps traceability)
+      - name: Build and push (by SHA)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:${{ github.sha }}
