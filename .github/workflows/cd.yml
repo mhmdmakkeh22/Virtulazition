@@ -29,6 +29,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Show current directory contents
+        run: |
+          echo "Current working directory: $(pwd)"
+          ls -R
+
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest -f Dockerfile .
 
