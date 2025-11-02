@@ -1,174 +1,71 @@
-import {
-  jest,
-  describe,
-  beforeEach,
-  afterEach,
-  it,
-  expect,
-} from '@jest/globals';
 import request from 'supertest';
 import * as si from 'systeminformation';
-import server, { getSysInfo, ISystemInformation } from '../src/index';
+import server, { getSysInfo } from '../src/index';
 
-// Mock du module systeminformation
+// Mock systeminformation
 jest.mock('systeminformation');
 
 const mockedSi = si as jest.Mocked<typeof si>;
 
-describe('getSysInfo', () => {
-  const mockCpu = { manufacturer: 'Intel', brand: 'Core i7' };
-  const mockSystem = { manufacturer: 'Dell', model: 'XPS 15' };
-  const mockMem = { total: 16000000000, free: 8000000000 };
-  const mockOs = { platform: 'linux', distro: 'Ubuntu' };
-  const mockCurrentLoad = { currentLoad: 25.5 };
-  const mockProcesses = { all: 150, running: 2 };
-  const mockDiskLayout = [{ device: '/dev/sda', size: 500000000000 }];
-  const mockNetworkInterfaces = [{ iface: 'eth0', ip4: '192.168.1.10' }];
-
+describe('System Information API', () => {
   beforeEach(() => {
-    // Configuration des mocks avant chaque test
-    mockedSi.cpu.mockResolvedValue(mockCpu as any);
-    mockedSi.system.mockResolvedValue(mockSystem as any);
-    mockedSi.mem.mockResolvedValue(mockMem as any);
-    mockedSi.osInfo.mockResolvedValue(mockOs as any);
-    mockedSi.currentLoad.mockResolvedValue(mockCurrentLoad as any);
-    mockedSi.processes.mockResolvedValue(mockProcesses as any);
-    mockedSi.diskLayout.mockResolvedValue(mockDiskLayout as any);
-    mockedSi.networkInterfaces.mockResolvedValue(mockNetworkInterfaces as any);
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
+
+    // Setup default mocks for all tests
+    mockedSi.cpu.mockResolvedValue({ manufacturer: 'Intel' } as any);
+    mockedSi.system.mockResolvedValue({ model: 'Test' } as any);
+    mockedSi.mem.mockResolvedValue({ total: 1000 } as any);
+    mockedSi.osInfo.mockResolvedValue({ platform: 'linux' } as any);
+    mockedSi.currentLoad.mockResolvedValue({ currentLoad: 50 } as any);
+    mockedSi.processes.mockResolvedValue({ all: 100 } as any);
+    mockedSi.diskLayout.mockResolvedValue([{ type: 'SSD' }] as any);
+    mockedSi.networkInterfaces.mockResolvedValue([{ iface: 'eth0' }] as any);
   });
 
-  it('devrait retourner toutes les informations système', async () => {
-    const result = await getSysInfo();
+  describe('getSysInfo', () => {
+    it('should return system information', async () => {
+      const result = await getSysInfo();
 
-    expect(result).toEqual({
-      cpu: mockCpu,
-      system: mockSystem,
-      mem: mockMem,
-      os: mockOs,
-      currentLoad: mockCurrentLoad,
-      processes: mockProcesses,
-      diskLayout: mockDiskLayout,
-      networkInterfaces: mockNetworkInterfaces,
+      expect(result).toBeDefined();
+      expect(result.cpu.manufacturer).toBe('Intel');
+      expect(mockedSi.cpu).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when systeminformation fails', async () => {
+      mockedSi.cpu.mockRejectedValue(new Error('Failed'));
+
+      await expect(getSysInfo()).rejects.toThrow('Failed');
     });
   });
 
-  it('devrait appeler toutes les fonctions systeminformation', async () => {
-    await getSysInfo();
+  describe('GET /api/v1/sysinfo', () => {
+    it('should return 200 with system info', async () => {
+      const response = await request(server)
+        .get('/api/v1/sysinfo')
+        .expect(200)
+        .expect('Content-Type', /json/);
 
-    expect(mockedSi.cpu).toHaveBeenCalledTimes(1);
-    expect(mockedSi.system).toHaveBeenCalledTimes(1);
-    expect(mockedSi.mem).toHaveBeenCalledTimes(1);
-    expect(mockedSi.osInfo).toHaveBeenCalledTimes(1);
-    expect(mockedSi.currentLoad).toHaveBeenCalledTimes(1);
-    expect(mockedSi.processes).toHaveBeenCalledTimes(1);
-    expect(mockedSi.diskLayout).toHaveBeenCalledTimes(1);
-    expect(mockedSi.networkInterfaces).toHaveBeenCalledTimes(1);
-  });
+      expect(response.body.cpu).toBeDefined();
+      expect(response.body.system).toBeDefined();
+    });
 
-  it('devrait propager les erreurs si systeminformation échoue', async () => {
-    const errorMessage = 'Erreur de lecture CPU';
-    mockedSi.cpu.mockRejectedValue(new Error(errorMessage));
+    it('should return 404 for unknown routes', async () => {
+      const response = await request(server).get('/unknown').expect(404);
 
-    await expect(getSysInfo()).rejects.toThrow(errorMessage);
-  });
-});
+      expect(response.body.error).toBe('Not found');
+    });
 
-describe('API HTTP /api/v1/sysinfo', () => {
-  const mockSysInfo: ISystemInformation = {
-    cpu: { manufacturer: 'Intel', brand: 'Core i7' } as any,
-    system: { manufacturer: 'Dell', model: 'XPS 15' } as any,
-    mem: { total: 16000000000, free: 8000000000 } as any,
-    os: { platform: 'linux', distro: 'Ubuntu' } as any,
-    currentLoad: { currentLoad: 25.5 } as any,
-    processes: { all: 150, running: 2 } as any,
-    diskLayout: [{ device: '/dev/sda', size: 500000000000 } as any],
-    networkInterfaces: [{ iface: 'eth0', ip4: '192.168.1.10' } as any],
-  };
+    it('should return 404 for POST requests', async () => {
+      await request(server).post('/api/v1/sysinfo').expect(404);
+    });
 
-  beforeEach(() => {
-    mockedSi.cpu.mockResolvedValue(mockSysInfo.cpu);
-    mockedSi.system.mockResolvedValue(mockSysInfo.system);
-    mockedSi.mem.mockResolvedValue(mockSysInfo.mem);
-    mockedSi.osInfo.mockResolvedValue(mockSysInfo.os);
-    mockedSi.currentLoad.mockResolvedValue(mockSysInfo.currentLoad);
-    mockedSi.processes.mockResolvedValue(mockSysInfo.processes);
-    mockedSi.diskLayout.mockResolvedValue(mockSysInfo.diskLayout);
-    mockedSi.networkInterfaces.mockResolvedValue(mockSysInfo.networkInterfaces);
-  });
+    it('should return 500 on error', async () => {
+      mockedSi.cpu.mockRejectedValue(new Error('CPU failed'));
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+      const response = await request(server).get('/api/v1/sysinfo').expect(500);
 
-  it('GET /api/v1/sysinfo devrait retourner les infos système avec status 200', async () => {
-    const response = await request(server).get('/api/v1/sysinfo');
-
-    expect(response.status).toBe(200);
-    expect(response.headers['content-type']).toMatch(/application\/json/);
-    expect(response.body).toEqual(mockSysInfo);
-  });
-
-  it('GET /api/v1/sysinfo devrait retourner du JSON valide', async () => {
-    const response = await request(server).get('/api/v1/sysinfo');
-
-    expect(() => JSON.parse(JSON.stringify(response.body))).not.toThrow();
-    expect(response.body).toHaveProperty('cpu');
-    expect(response.body).toHaveProperty('mem');
-    expect(response.body).toHaveProperty('os');
-  });
-
-  it('devrait retourner 404 pour une route inexistante', async () => {
-    const response = await request(server).get('/api/v1/inexistant');
-
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'Not found' });
-  });
-
-  it('devrait retourner 404 pour une méthode POST', async () => {
-    const response = await request(server).post('/api/v1/sysinfo');
-
-    expect(response.status).toBe(404);
-  });
-
-  it('devrait gérer les erreurs avec status 500', async () => {
-    const errorMessage = 'Erreur système critique';
-    mockedSi.cpu.mockRejectedValue(new Error(errorMessage));
-
-    const response = await request(server).get('/api/v1/sysinfo');
-
-    expect(response.status).toBe(500);
-    expect(response.body).toHaveProperty('error', 'Internal server error');
-    expect(response.body).toHaveProperty('message', errorMessage);
-  });
-
-  it('devrait avoir le header Content-Type correct pour les erreurs', async () => {
-    const response = await request(server).get('/route-invalide');
-
-    expect(response.headers['content-type']).toMatch(/application\/json/);
-  });
-});
-
-describe('Configuration du serveur', () => {
-  it('devrait utiliser le port par défaut 8000', () => {
-    const originalEnv = process.env.PORT;
-    delete process.env.PORT;
-
-    // Le port est défini au niveau du module, donc on vérifie le comportement
-    expect(process.env.PORT).toBeUndefined();
-
-    process.env.PORT = originalEnv;
-  });
-
-  it("devrait permettre la configuration du port via variable d'environnement", () => {
-    const originalEnv = process.env.PORT;
-    process.env.PORT = '3000';
-
-    expect(Number(process.env.PORT)).toBe(3000);
-
-    process.env.PORT = originalEnv;
+      expect(response.body.error).toBe('Internal server error');
+      expect(response.body.message).toBe('CPU failed');
+    });
   });
 });

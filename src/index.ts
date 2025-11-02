@@ -41,7 +41,7 @@ export async function getSysInfo(): Promise<ISystemInformation> {
   };
 }
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 8000;
+
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -63,10 +63,16 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log("Server listening on http://localhost:${PORT}");
+const PORT = Number(process.env.PORT ?? 8000);
+
+export const start = (port = PORT) => {
+  return server.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
   });
+};
+
+if (process.env.NODE_ENV !== 'test') {
+  start();
 }
 
 export default server;
