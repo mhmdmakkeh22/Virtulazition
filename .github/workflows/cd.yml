@@ -1,16 +1,21 @@
-name: Continuous Delivery
+name: CD - Docker Build and Push
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI - Tests"]
+    types:
+      - completed
     branches:
       - main
 
 jobs:
-  docker-deploy:
+  docker:
     runs-on: ubuntu-latest
+    # N'exécuter que si le workflow de tests a réussi
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -29,22 +34,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show directory contents
-        run: |
-          echo "Current working directory: $(pwd)"
-          ls -al
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build Docker image (local test)
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest -f Dockerfile .
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Tag and push to Docker Hub
-        run: |
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:0.0.1
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:0.0.1
-
-      - name: Tag and push to GHCR
-        run: |
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/sysinfo-api:latest ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
-          docker push ghcr.io/${{ github.repository_owner }}/sysinfo-api:latest
+      - name: Image digest
+        run: echo ${{ steps.meta.outputs.tags }}
