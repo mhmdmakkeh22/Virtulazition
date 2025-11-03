@@ -62,7 +62,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ error: "Internal server error", message: String(err?.message || err) }));
   }
 });
-
+//Test setup
 const PORT = Number(process.env.PORT ?? 8000);
 
 export const start = (port = PORT) => {
