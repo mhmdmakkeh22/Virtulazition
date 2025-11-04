@@ -46,7 +46,7 @@ jobs:
         with:
           images: |
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/Virtulazition
-            ghcr.io/${{ env.OWNER }}/cloudproject
+            ghcr.io/${{ env.OWNER }}/Virtulazition
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -67,5 +67,5 @@ jobs:
 
       - name: Verify pushed images
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ env.OWNER }}/cloudproject:latest
-          docker buildx imagetools inspect docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cloudproject:latest
+          docker buildx imagetools inspect ghcr.io/${{ env.OWNER }}/Virtulazition:latest
+          docker buildx imagetools inspect docker.io/${{ secrets.DOCKERHUB_USERNAME }}/Virtulazition:latest
