@@ -13,7 +13,7 @@ export interface ISystemInformation {
     | si.Systeminformation.NetworkInterfacesData
     | si.Systeminformation.NetworkInterfacesData[];
 }
-
+//testing hello
 // Fonction pure facile à tester
 export async function getSysInfo(): Promise<ISystemInformation> {
   const [
