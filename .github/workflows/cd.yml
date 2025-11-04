@@ -45,8 +45,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/Virtulazition
-            ghcr.io/${{ env.OWNER }}/Virtulazition
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/virtulazition
+            ghcr.io/${{ env.OWNER }}/virtulazition
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -67,5 +67,5 @@ jobs:
 
       - name: Verify pushed images
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ env.OWNER }}/Virtulazition:latest
-          docker buildx imagetools inspect docker.io/${{ secrets.DOCKERHUB_USERNAME }}/Virtulazition:latest
+          docker buildx imagetools inspect ghcr.io/${{ env.OWNER }}/virtulazition:latest
+          docker buildx imagetools inspect docker.io/${{ secrets.DOCKERHUB_USERNAME }}/virtulazition:latest
